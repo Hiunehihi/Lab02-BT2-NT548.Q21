@@ -1,27 +1,27 @@
-# Lab02 BT2 - CloudFormation, CodeBuild, Taskcat va CodePipeline
+# Lab02 BT2 - CloudFormation, CodeBuild, Taskcat và CodePipeline
 
-## 1. Gioi thieu
+## 1. Giới Thiệu
 
-Day la bai thuc hanh trien khai lai ha tang cua Lab01 bang AWS CloudFormation, sau do tu dong hoa quy trinh kiem tra va deploy bang AWS CodePipeline.
+Đây là bài thực hành triển khai lại hạ tầng của Lab01 bằng AWS CloudFormation, sau đó tự động hóa quy trình kiểm tra và deploy bằng AWS CodePipeline.
 
-Ha tang duoc tao gom:
+Hạ tầng được tạo gồm:
 
 - VPC.
-- Public subnet va private subnet.
+- Public subnet và private subnet.
 - Internet Gateway.
 - NAT Gateway.
 - Route tables cho public/private subnet.
 - Security Groups.
-- 2 EC2 instance: 1 public EC2 va 1 private EC2.
+- 2 EC2 instance: 1 public EC2 và 1 private EC2.
 
-Phan CI/CD duoc tao gom:
+Phần CI/CD được tạo gồm:
 
-- AWS CodeCommit lam source repository.
-- AWS CodeBuild chay `cfn-lint` va Taskcat de kiem tra template.
-- AWS CodePipeline gom 3 stage: `Source`, `Build`, `Deploy`.
-- CloudFormation deploy stack ha tang tu template da duoc package.
+- AWS CodeCommit làm source repository.
+- AWS CodeBuild chạy `cfn-lint` và Taskcat để kiểm tra template.
+- AWS CodePipeline gồm 3 stage: `Source`, `Build`, `Deploy`.
+- CloudFormation deploy stack hạ tầng từ template đã được package.
 
-## 2. Cau truc source code
+## 2. Cấu Trúc Source Code
 
 ```text
 lab02-bt2/
@@ -40,44 +40,44 @@ lab02-bt2/
     `-- lab2-parameters.json
 ```
 
-Trong do:
+Trong đó:
 
-- `infrastructure.yaml` la root stack. File nay goi cac nested stack trong thu muc `modules/`.
-- `modules/vpc.yaml` tao VPC, subnet, Internet Gateway, NAT Gateway va route table.
-- `modules/security-groups.yaml` tao Security Group cho public EC2 va private EC2.
-- `modules/ec2.yaml` tao public EC2 va private EC2.
-- `pipeline.yaml` tao CodeBuild, CodePipeline, IAM roles, S3 artifact bucket va EventBridge trigger.
-- `buildspec.yml` la file CodeBuild se doc de chay cac buoc validate template.
-- `.taskcat.yml` cau hinh Taskcat.
-- `.cfnlintrc` cau hinh cfn-lint.
+- `infrastructure.yaml` là root stack. File này gọi các nested stack trong thư mục `modules/`.
+- `modules/vpc.yaml` tạo VPC, subnet, Internet Gateway, NAT Gateway và route table.
+- `modules/security-groups.yaml` tạo Security Group cho public EC2 và private EC2.
+- `modules/ec2.yaml` tạo public EC2 và private EC2.
+- `pipeline.yaml` tạo CodeBuild, CodePipeline, IAM roles, S3 artifact bucket và EventBridge trigger.
+- `buildspec.yml` là file CodeBuild sẽ đọc để chạy các bước validate template.
+- `.taskcat.yml` cấu hình Taskcat.
+- `.cfnlintrc` cấu hình cfn-lint.
 
-Ly do tach thanh `modules/` la de source CloudFormation de doc hon, gan voi cach to chuc module trong Terraform o Lab01.
+Lý do tách thành `modules/` là để source CloudFormation dễ đọc hơn, gần với cách tổ chức module trong Terraform ở Lab01.
 
-## 3. Chuan bi moi truong
+## 3. Chuẩn Bị Môi Trường
 
-### 3.1. Cai AWS CLI
+### 3.1. Cài AWS CLI
 
-Kiem tra AWS CLI:
+Kiểm tra AWS CLI:
 
 ```bash
 aws --version
 ```
 
-Neu chua cai AWS CLI, co the cai theo huong dan chinh thuc cua AWS:
+Nếu chưa cài AWS CLI, có thể cài theo hướng dẫn chính thức của AWS:
 
 ```text
 https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 ```
 
-### 3.2. Cau hinh AWS account
+### 3.2. Cấu Hình AWS Account
 
-Chay lenh:
+Chạy lệnh:
 
 ```bash
 aws configure
 ```
 
-Nhap cac thong tin:
+Nhập các thông tin:
 
 ```text
 AWS Access Key ID
@@ -86,29 +86,29 @@ Default region name: ap-southeast-1
 Default output format: json
 ```
 
-Kiem tra tai khoan dang dung:
+Kiểm tra tài khoản đang dùng:
 
 ```bash
 aws sts get-caller-identity
 ```
 
-### 3.3. Kiem tra region
+### 3.3. Kiểm Tra Region
 
-Bai nay dung region Singapore:
+Bài này dùng region Singapore:
 
 ```bash
 aws configure get region
 ```
 
-Neu region chua dung, set lai:
+Nếu region chưa đúng, set lại:
 
 ```bash
 aws configure set region ap-southeast-1
 ```
 
-### 3.4. Tao EC2 key pair
+### 3.4. Tạo EC2 Key Pair
 
-EC2 instance can key pair de SSH. Neu chua co key pair `lab1-kp`, tao bang lenh:
+EC2 instance cần key pair để SSH. Nếu chưa có key pair `lab1-kp`, tạo bằng lệnh:
 
 ```bash
 aws ec2 create-key-pair \
@@ -120,7 +120,7 @@ aws ec2 create-key-pair \
 chmod 400 lab1-kp.pem
 ```
 
-Kiem tra key pair:
+Kiểm tra key pair:
 
 ```bash
 aws ec2 describe-key-pairs \
@@ -128,57 +128,57 @@ aws ec2 describe-key-pairs \
   --region ap-southeast-1
 ```
 
-Khong commit file `.pem` len GitHub hoac CodeCommit.
+Không commit file `.pem` lên GitHub hoặc CodeCommit.
 
-### 3.5. Lay public IP cua may minh
+### 3.5. Lấy Public IP Của Máy Mình
 
-Lay IP public:
+Lấy IP public:
 
 ```bash
 curl https://checkip.amazonaws.com
 ```
 
-Khi truyen vao tham so `MyIp`, them `/32`, vi du:
+Khi truyền vào tham số `MyIp`, thêm `/32`, ví dụ:
 
 ```text
 14.169.22.156/32
 ```
 
-Security Group cua public EC2 se chi cho phep SSH tu IP nay.
+Security Group của public EC2 sẽ chỉ cho phép SSH từ IP này.
 
-## 4. Kiem tra template truoc khi deploy
+## 4. Kiểm Tra Template Trước Khi Deploy
 
-Neu muon chay kiem tra local truoc khi push code, cai cac package Python:
+Nếu muốn chạy kiểm tra local trước khi push code, cài các package Python:
 
 ```bash
 python -m pip install --upgrade pip
 pip install "setuptools<81" cfn-lint taskcat
 ```
 
-Chay cfn-lint:
+Chạy cfn-lint:
 
 ```bash
 cfn-lint --config-file .cfnlintrc *.yaml modules/*.yaml
 ```
 
-Chay Taskcat lint:
+Chạy Taskcat lint:
 
 ```bash
 taskcat lint
 ```
 
-Trong pipeline that, CodeBuild se tu dong chay cac lenh nay nen buoc local khong bat buoc. Buoc local chu yeu dung de kiem tra nhanh truoc khi push.
+Trong pipeline thật, CodeBuild sẽ tự động chạy các lệnh này nên bước local không bắt buộc. Bước local chủ yếu dùng để kiểm tra nhanh trước khi push.
 
-## 5. Tao repository tren AWS CodeCommit
+## 5. Tạo Repository Trên AWS CodeCommit
 
-Kiem tra CodeCommit repository:
+Kiểm tra CodeCommit repository:
 
 ```bash
 aws codecommit list-repositories \
   --region ap-southeast-1
 ```
 
-Neu chua co repo `lab02-bt2`, tao moi:
+Nếu chưa có repo `lab02-bt2`, tạo mới:
 
 ```bash
 aws codecommit create-repository \
@@ -187,7 +187,7 @@ aws codecommit create-repository \
   --region ap-southeast-1
 ```
 
-Lay clone URL:
+Lấy clone URL:
 
 ```bash
 aws codecommit get-repository \
@@ -197,7 +197,7 @@ aws codecommit get-repository \
   --output text
 ```
 
-## 6. Dua source code len CodeCommit
+## 6. Đưa Source Code Lên CodeCommit
 
 Clone repo CodeCommit:
 
@@ -205,7 +205,7 @@ Clone repo CodeCommit:
 git clone https://git-codecommit.ap-southeast-1.amazonaws.com/v1/repos/lab02-bt2
 ```
 
-Copy source code cua bai vao repo vua clone. Khi copy nen bo qua `.git`, output tam va file key pair:
+Copy source code của bài vào repo vừa clone. Khi copy nên bỏ qua `.git`, output tạm và file key pair:
 
 ```bash
 rsync -a \
@@ -217,7 +217,7 @@ rsync -a \
   ./ lab02-bt2/
 ```
 
-Commit va push:
+Commit và push:
 
 ```bash
 cd lab02-bt2
@@ -226,11 +226,15 @@ git commit -m "Add Lab02 CloudFormation source"
 git push origin main
 ```
 
-Sau khi push len CodeCommit, CodePipeline se tu dong duoc kich hoat neu pipeline stack da duoc tao.
+Sau khi push lên CodeCommit, CodePipeline sẽ tự động được kích hoạt nếu pipeline stack đã được tạo.
 
-## 7. Tao CodePipeline bang CloudFormation
+## 7. Triển Khai Thực Tế
 
-Dung file `pipeline.yaml` de tao pipeline stack:
+Phần này là luồng chạy chính của bài: tạo pipeline bằng CloudFormation, đưa source code lên CodeCommit, sau đó để CodePipeline tự build và deploy hạ tầng.
+
+### 7.1. Deploy Pipeline Stack
+
+Dùng file `pipeline.yaml` để tạo các tài nguyên phục vụ CI/CD:
 
 ```bash
 aws cloudformation deploy \
@@ -252,17 +256,17 @@ aws cloudformation deploy \
   --region ap-southeast-1
 ```
 
-Can thay `YOUR_PUBLIC_IP/32` bang IP public cua may minh.
+Cần thay `YOUR_PUBLIC_IP/32` bằng IP public của máy đang dùng, ví dụ `14.169.22.156/32`.
 
-Lenh tren se tao:
+Lệnh trên sẽ tạo:
 
-- CodePipeline ten `lab02-bt2-pipeline`.
-- CodeBuild project ten `lab02-bt2-pipeline-build`.
+- CodePipeline tên `lab02-bt2-pipeline`.
+- CodeBuild project tên `lab02-bt2-pipeline-build`.
 - S3 artifact bucket.
-- IAM role cho CodePipeline, CodeBuild va CloudFormation.
-- EventBridge rule de pipeline tu chay khi co commit moi tren CodeCommit.
+- IAM role cho CodePipeline, CodeBuild và CloudFormation.
+- EventBridge rule để pipeline tự chạy khi có commit mới trên CodeCommit.
 
-Kiem tra output cua pipeline stack:
+Kiểm tra output của pipeline stack sau khi deploy:
 
 ```bash
 aws cloudformation describe-stacks \
@@ -272,21 +276,31 @@ aws cloudformation describe-stacks \
   --output table
 ```
 
-## 8. Pipeline hoat dong nhu the nao
+### 7.2. Push Source Code Lên CodeCommit
 
-Pipeline gom 3 stage:
+Nếu đang ở repo CodeCommit đã clone, commit và push source code:
+
+```bash
+git add .
+git commit -m "Update Lab02 CloudFormation source"
+git push origin main
+```
+
+Sau khi push lên branch `main`, EventBridge sẽ kích hoạt CodePipeline.
+
+Pipeline chạy theo thứ tự:
 
 ```text
 Source -> Build -> Deploy
 ```
 
-Y nghia tung stage:
+Trong đó:
 
-- `Source`: lay source code tu CodeCommit branch `main`.
-- `Build`: goi CodeBuild de chay `cfn-lint`, Taskcat va package nested stack.
-- `Deploy`: dung CloudFormation de tao hoac cap nhat stack `lab02-bt2-infrastructure`.
+- `Source`: lấy source code từ CodeCommit.
+- `Build`: dùng CodeBuild để chạy `cfn-lint`, Taskcat và package nested stack.
+- `Deploy`: dùng CloudFormation để tạo hoặc cập nhật stack `lab02-bt2-infrastructure`.
 
-Trong `buildspec.yml`, CodeBuild chay cac lenh chinh:
+Trong stage `Build`, CodeBuild đọc file `buildspec.yml` và chạy các lệnh chính:
 
 ```bash
 cfn-lint --config-file .cfnlintrc *.yaml modules/*.yaml
@@ -295,21 +309,11 @@ aws cloudformation package --template-file infrastructure.yaml ...
 taskcat test run -i .taskcat-packaged.yml
 ```
 
-Neu buoc Build loi, pipeline se dung lai va khong deploy ha tang. Neu Build thanh cong, Deploy stage se chay va tao/cap nhat CloudFormation stack.
+Nếu stage `Build` thành công, pipeline mới chuyển sang stage `Deploy`.
 
-## 9. Chay pipeline
+### 7.3. Chạy Lại Pipeline Khi Cần
 
-Thong thuong chi can push code len CodeCommit:
-
-```bash
-git add .
-git commit -m "Update Lab02 source"
-git push origin main
-```
-
-Pipeline se tu dong chay nho EventBridge trigger.
-
-Neu muon chay pipeline thu cong:
+Thông thường chỉ cần push code mới lên CodeCommit là pipeline sẽ tự chạy. Nếu muốn chạy lại pipeline thủ công, dùng lệnh:
 
 ```bash
 aws codepipeline start-pipeline-execution \
@@ -317,29 +321,11 @@ aws codepipeline start-pipeline-execution \
   --region ap-southeast-1
 ```
 
-Kiem tra trang thai pipeline:
+### 7.4. Deploy Hạ Tầng Trực Tiếp Bằng AWS CLI
 
-```bash
-aws codepipeline get-pipeline-state \
-  --name lab02-bt2-pipeline \
-  --region ap-southeast-1 \
-  --query 'stageStates[].{Stage:stageName,Actions:actionStates[].{Action:actionName,Status:latestExecution.status,Summary:latestExecution.summary}}' \
-  --output json
-```
+Bài này triển khai hạ tầng chính thông qua CodePipeline. Tuy nhiên, trong trường hợp muốn chạy thủ công bằng AWS CLI để kiểm tra template hoặc cập nhật stack trực tiếp, cần package template trước khi deploy.
 
-Ket qua mong doi:
-
-```text
-Source: Succeeded
-Build:  Succeeded
-Deploy: Succeeded
-```
-
-## 10. Deploy ha tang truc tiep bang AWS CLI
-
-Bai nay deploy ha tang thong qua CodePipeline. Tuy nhien, neu can chay thu cong de chup minh chung hoac debug, khong deploy truc tiep file `infrastructure.yaml` ngay.
-
-Ly do: `infrastructure.yaml` goi nested stack bang duong dan local:
+Lý do là `infrastructure.yaml` đang dùng nested stack:
 
 ```yaml
 TemplateURL: modules/vpc.yaml
@@ -347,9 +333,7 @@ TemplateURL: modules/security-groups.yaml
 TemplateURL: modules/ec2.yaml
 ```
 
-CloudFormation tren AWS khong doc duoc duong dan local nay. Vi vay can package cac file trong `modules/` len S3 truoc.
-
-Lay artifact bucket cua pipeline:
+CloudFormation trên AWS cần các nested template này nằm trên S3. Vì vậy, trước tiên lấy tên artifact bucket của pipeline:
 
 ```bash
 aws cloudformation describe-stacks \
@@ -359,7 +343,7 @@ aws cloudformation describe-stacks \
   --output text
 ```
 
-Package template:
+Sau đó package template:
 
 ```bash
 mkdir -p packaged
@@ -372,7 +356,7 @@ aws cloudformation package \
   --region ap-southeast-1
 ```
 
-Deploy file da package:
+Cuối cùng deploy file đã package:
 
 ```bash
 aws cloudformation deploy \
@@ -391,53 +375,109 @@ aws cloudformation deploy \
   --region ap-southeast-1
 ```
 
-Neu chay `deploy` truc tiep voi `infrastructure.yaml`, co the gap loi:
+## 8. Kiểm Tra Kết Quả Trên AWS Console
+
+Sau khi pipeline chạy xong, có thể kiểm tra trực tiếp trên AWS Console.
+
+### 8.1. CodeCommit
+
+Vào AWS Console:
 
 ```text
-TemplateURL must be a supported URL
+Developer Tools -> CodeCommit -> Repositories -> lab02-bt2
 ```
 
-Loi nay co nghia la nested template chua duoc upload len S3.
+Kiểm tra source code đã có các file `infrastructure.yaml`, `pipeline.yaml`, `buildspec.yml`, `.taskcat.yml` và thư mục `modules/`.
 
-## 11. Kiem tra ket qua trien khai
+### 8.2. CodePipeline
 
-### 11.1. Kiem tra CloudFormation stack
+Vào:
 
-Kiem tra stack pipeline:
-
-```bash
-aws cloudformation describe-stacks \
-  --stack-name lab02-bt2-pipeline \
-  --region ap-southeast-1 \
-  --query 'Stacks[0].StackStatus' \
-  --output text
+```text
+Developer Tools -> CodePipeline -> Pipelines -> lab02-bt2-pipeline
 ```
 
-Kiem tra stack ha tang:
+Kết quả đúng là 3 stage đều thành công:
 
-```bash
-aws cloudformation describe-stacks \
-  --stack-name lab02-bt2-infrastructure \
-  --region ap-southeast-1 \
-  --query 'Stacks[0].StackStatus' \
-  --output text
+```text
+Source: Succeeded
+Build: Succeeded
+Deploy: Succeeded
 ```
 
-Ket qua dung la `CREATE_COMPLETE` hoac `UPDATE_COMPLETE`.
+### 8.3. CodeBuild
 
-Xem output cua stack ha tang:
+Vào:
+
+```text
+Developer Tools -> CodeBuild -> Build projects -> lab02-bt2-pipeline-build
+```
+
+Mở build mới nhất và kiểm tra trạng thái `Succeeded`. Trong build log có thể thấy các bước cài `cfn-lint`, cài Taskcat, chạy `cfn-lint`, chạy `taskcat lint`, chạy `aws cloudformation package` và chạy `taskcat test run`.
+
+### 8.4. CloudFormation
+
+Vào:
+
+```text
+CloudFormation -> Stacks
+```
+
+Kiểm tra các stack:
+
+```text
+lab02-bt2-pipeline
+lab02-bt2-infrastructure
+```
+
+Stack `lab02-bt2-infrastructure` cần ở trạng thái `CREATE_COMPLETE` hoặc `UPDATE_COMPLETE`. Trong tab Resources có thể thấy các nested stack như `VpcStack`, `SecurityGroupsStack` và `Ec2Stack`.
+
+### 8.5. EC2 Và VPC
+
+Trong EC2 console, kiểm tra có 2 instance được tạo:
+
+- Public EC2: có Public IP, nằm trong public subnet.
+- Private EC2: không có Public IP, nằm trong private subnet.
+
+Trong VPC console, kiểm tra các tài nguyên mạng:
+
+- VPC của project `lab02-bt2`.
+- Public subnet và private subnet.
+- Route table cho public subnet đi qua Internet Gateway.
+- Route table cho private subnet đi qua NAT Gateway.
+- NAT Gateway ở trạng thái `Available`.
+- Security Group của public EC2 và private EC2.
+
+## 9. Kiểm Tra Kết Quả Bằng AWS CLI
+
+Ngoài AWS Console, có thể dùng AWS CLI để kiểm tra nhanh toàn bộ kết quả triển khai.
+
+### 9.1. Kiểm Tra Pipeline
+
+Kiểm tra trạng thái pipeline:
 
 ```bash
-aws cloudformation describe-stacks \
-  --stack-name lab02-bt2-infrastructure \
+aws codepipeline get-pipeline-state \
+  --name lab02-bt2-pipeline \
   --region ap-southeast-1 \
-  --query 'Stacks[0].Outputs' \
+  --query 'stageStates[].{Stage:stageName,Actions:actionStates[].{Action:actionName,Status:latestExecution.status,Summary:latestExecution.summary}}' \
+  --output json
+```
+
+Xem các execution gần nhất:
+
+```bash
+aws codepipeline list-pipeline-executions \
+  --pipeline-name lab02-bt2-pipeline \
+  --region ap-southeast-1 \
+  --max-results 5 \
+  --query 'pipelineExecutionSummaries[].{Id:pipelineExecutionId,Status:status,Commit:sourceRevisions[0].revisionId,Message:sourceRevisions[0].revisionSummary}' \
   --output table
 ```
 
-### 11.2. Kiem tra CodeBuild
+### 9.2. Kiểm Tra CodeBuild
 
-Lay build moi nhat:
+Lấy build mới nhất của project:
 
 ```bash
 aws codebuild list-builds-for-project \
@@ -447,7 +487,7 @@ aws codebuild list-builds-for-project \
   --output text
 ```
 
-Xem trang thai build:
+Xem chi tiết build:
 
 ```bash
 aws codebuild batch-get-builds \
@@ -457,24 +497,58 @@ aws codebuild batch-get-builds \
   --output table
 ```
 
-Ket qua dung:
+Kết quả đúng là:
 
 ```text
 Status: SUCCEEDED
 Phase:  COMPLETED
 ```
 
-Trong log CodeBuild nen thay cac buoc:
+### 9.3. Kiểm Tra CloudFormation
 
-- Cai `cfn-lint` va Taskcat.
-- Chay `cfn-lint`.
-- Chay `taskcat lint`.
-- Chay `aws cloudformation package`.
-- Chay `taskcat test run`.
+Kiểm tra trạng thái pipeline stack:
 
-### 11.3. Kiem tra EC2
+```bash
+aws cloudformation describe-stacks \
+  --stack-name lab02-bt2-pipeline \
+  --region ap-southeast-1 \
+  --query 'Stacks[0].StackStatus' \
+  --output text
+```
 
-Kiem tra EC2 instance duoc tao:
+Kiểm tra trạng thái infrastructure stack:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name lab02-bt2-infrastructure \
+  --region ap-southeast-1 \
+  --query 'Stacks[0].StackStatus' \
+  --output text
+```
+
+Xem output của infrastructure stack:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name lab02-bt2-infrastructure \
+  --region ap-southeast-1 \
+  --query 'Stacks[0].Outputs' \
+  --output table
+```
+
+Xem các resource trong stack:
+
+```bash
+aws cloudformation list-stack-resources \
+  --stack-name lab02-bt2-infrastructure \
+  --region ap-southeast-1 \
+  --query 'StackResourceSummaries[].{LogicalId:LogicalResourceId,Type:ResourceType,Status:ResourceStatus}' \
+  --output table
+```
+
+### 9.4. Kiểm Tra EC2
+
+Kiểm tra các EC2 instance của project:
 
 ```bash
 aws ec2 describe-instances \
@@ -484,14 +558,14 @@ aws ec2 describe-instances \
   --output table
 ```
 
-Ket qua mong doi:
+Kết quả mong đợi:
 
-- Public EC2 o trang thai `running` va co Public IP.
-- Private EC2 o trang thai `running` va khong co Public IP.
+- Public EC2 ở trạng thái `running` và có Public IP.
+- Private EC2 ở trạng thái `running` và không có Public IP.
 
-### 11.4. Kiem tra VPC, subnet va NAT Gateway
+### 9.5. Kiểm Tra VPC, Subnet Và NAT Gateway
 
-Kiem tra VPC:
+Kiểm tra VPC:
 
 ```bash
 aws ec2 describe-vpcs \
@@ -501,7 +575,7 @@ aws ec2 describe-vpcs \
   --output table
 ```
 
-Kiem tra NAT Gateway:
+Kiểm tra NAT Gateway:
 
 ```bash
 aws ec2 describe-nat-gateways \
@@ -511,61 +585,8 @@ aws ec2 describe-nat-gateways \
   --output table
 ```
 
-Ket qua mong doi:
+Kết quả mong đợi:
 
 ```text
 NAT Gateway State: available
 ```
-
-## 12. Goi y chup man hinh bao cao
-
-Co the chup theo thu tu sau:
-
-1. Cau truc thu muc source code.
-2. `infrastructure.yaml` co 3 nested stack: VPC, Security Groups va EC2.
-3. Cac file trong `modules/`.
-4. `buildspec.yml` co `cfn-lint`, Taskcat va `aws cloudformation package`.
-5. `pipeline.yaml` co 3 stage `Source`, `Build`, `Deploy`.
-6. Terminal push code len CodeCommit.
-7. CodePipeline `lab02-bt2-pipeline` chay thanh cong 3 stage.
-8. CodeBuild `lab02-bt2-pipeline-build` co build `SUCCEEDED`.
-9. CloudFormation stack `lab02-bt2-infrastructure` co trang thai `CREATE_COMPLETE` hoac `UPDATE_COMPLETE`.
-10. Tab Resources cua CloudFormation hien nested stacks va cac resource chinh.
-11. EC2 console co public EC2 va private EC2 dang `Running`.
-12. VPC console co VPC, subnet, route table, NAT Gateway va Security Groups.
-
-## 13. Don dep tai nguyen
-
-NAT Gateway co the tinh phi, nen sau khi chup minh chung xong nen xoa stack.
-
-Xoa stack ha tang truoc:
-
-```bash
-aws cloudformation delete-stack \
-  --stack-name lab02-bt2-infrastructure \
-  --region ap-southeast-1
-```
-
-Cho stack ha tang xoa xong:
-
-```bash
-aws cloudformation wait stack-delete-complete \
-  --stack-name lab02-bt2-infrastructure \
-  --region ap-southeast-1
-```
-
-Sau do xoa stack pipeline:
-
-```bash
-aws cloudformation delete-stack \
-  --stack-name lab02-bt2-pipeline \
-  --region ap-southeast-1
-```
-
-Neu S3 artifact bucket khong xoa duoc, vao S3 empty bucket truoc roi xoa lai stack pipeline.
-
-## 14. Ghi chu
-
-- GitHub repo dung de luu source code bai nop.
-- AWS CodeCommit repo `lab02-bt2` la source that su cua CodePipeline theo yeu cau de bai.
-- Khong commit file `.pem`, thu muc `packaged/`, `.taskcat_outputs/` hoac cac file output tam.
