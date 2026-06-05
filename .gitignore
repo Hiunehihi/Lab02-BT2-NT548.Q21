@@ -1,0 +1,5 @@
+.taskcat_outputs/
+taskcat_outputs/
+packaged/
+*.log
+*.pem

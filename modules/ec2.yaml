@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Lab02 BT2 EC2 nested stack. Converted from lab1-devops/modules/ec2.
+
+Parameters:
+  ProjectName:
+    Type: String
+
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+
+  PrivateSubnetId:
+    Type: AWS::EC2::Subnet::Id
+
+  PublicSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+  PrivateSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+  LatestAmiIdParam:
+    Type: AWS::EC2::Image::Id
+
+  InstanceType:
+    Type: String
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - t3.small
+      - t3.medium
+
+  KeyName:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasKeyName: !Not
+    - !Equals
+      - !Ref KeyName
+      - ""
+
+Resources:
+  PublicEc2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiIdParam
+      InstanceType: !Ref InstanceType
+      KeyName: !If
+        - HasKeyName
+        - !Ref KeyName
+        - !Ref AWS::NoValue
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds:
+        - !Ref PublicSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-public-ec2
+        - Key: Project
+          Value: !Ref ProjectName
+
+  PrivateEc2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiIdParam
+      InstanceType: !Ref InstanceType
+      KeyName: !If
+        - HasKeyName
+        - !Ref KeyName
+        - !Ref AWS::NoValue
+      SubnetId: !Ref PrivateSubnetId
+      SecurityGroupIds:
+        - !Ref PrivateSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-private-ec2
+        - Key: Project
+          Value: !Ref ProjectName
+
+Outputs:
+  PublicEc2InstanceId:
+    Value: !Ref PublicEc2Instance
+
+  PublicEc2PublicIp:
+    Value: !GetAtt PublicEc2Instance.PublicIp
+
+  PrivateEc2InstanceId:
+    Value: !Ref PrivateEc2Instance
+
+  PrivateEc2PrivateIp:
+    Value: !GetAtt PrivateEc2Instance.PrivateIp

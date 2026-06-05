@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Lab02 BT2 security groups nested stack. Converted from lab1-devops/modules/security_groups.
+
+Parameters:
+  ProjectName:
+    Type: String
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  MyIp:
+    Type: String
+
+Resources:
+  PublicEc2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH from MyIp to the public EC2 instance.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: SSH from MyIp
+          IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIp
+      SecurityGroupEgress:
+        - Description: Allow all outbound traffic
+          IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-public-ec2-sg
+        - Key: Project
+          Value: !Ref ProjectName
+
+  PrivateEc2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH only from the public EC2 security group.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: SSH from public EC2
+          IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref PublicEc2SecurityGroup
+      SecurityGroupEgress:
+        - Description: Allow all outbound traffic
+          IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-private-ec2-sg
+        - Key: Project
+          Value: !Ref ProjectName
+
+Outputs:
+  PublicSecurityGroupId:
+    Value: !Ref PublicEc2SecurityGroup
+
+  PrivateSecurityGroupId:
+    Value: !Ref PrivateEc2SecurityGroup

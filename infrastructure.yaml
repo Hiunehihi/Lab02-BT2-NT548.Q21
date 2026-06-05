@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Lab02 BT2 root stack. It composes VPC, security group, and EC2 nested stacks, similar to the Lab01 Terraform module layout.
+
+Parameters:
+  ProjectName:
+    Description: Prefix used for resource names and tags.
+    Type: String
+    Default: lab02-bt2
+
+  VpcCidr:
+    Description: CIDR block for the VPC.
+    Type: String
+    Default: 10.0.0.0/16
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+
+  PublicSubnetCidr:
+    Description: CIDR block for the public subnet.
+    Type: String
+    Default: 10.0.1.0/24
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+
+  PrivateSubnetCidr:
+    Description: CIDR block for the private subnet.
+    Type: String
+    Default: 10.0.2.0/24
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+
+  AvailabilityZone:
+    Description: Availability zone used for the public and private subnets.
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-southeast-1a
+
+  MyIp:
+    Description: Public IP allowed to SSH to the public EC2 instance. Example 1.2.3.4/32.
+    Type: String
+    Default: 203.0.113.10/32
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+
+  LatestAmiIdParam:
+    Description: SSM public parameter that resolves to an Amazon Linux AMI.
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+  InstanceType:
+    Description: EC2 instance type.
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - t3.small
+      - t3.medium
+
+  KeyName:
+    Description: Optional EC2 key pair name. Leave empty for Taskcat validation or non-SSH test deployments.
+    Type: String
+    Default: ""
+
+Resources:
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/vpc.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        VpcCidr: !Ref VpcCidr
+        PublicSubnetCidr: !Ref PublicSubnetCidr
+        PrivateSubnetCidr: !Ref PrivateSubnetCidr
+        AvailabilityZone: !Ref AvailabilityZone
+
+  SecurityGroupsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/security-groups.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt VpcStack.Outputs.VpcId
+        MyIp: !Ref MyIp
+
+  Ec2Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: modules/ec2.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        PublicSubnetId: !GetAtt VpcStack.Outputs.PublicSubnetId
+        PrivateSubnetId: !GetAtt VpcStack.Outputs.PrivateSubnetId
+        PublicSecurityGroupId: !GetAtt SecurityGroupsStack.Outputs.PublicSecurityGroupId
+        PrivateSecurityGroupId: !GetAtt SecurityGroupsStack.Outputs.PrivateSecurityGroupId
+        LatestAmiIdParam: !Ref LatestAmiIdParam
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+
+Outputs:
+  VpcId:
+    Description: Created VPC ID.
+    Value: !GetAtt VpcStack.Outputs.VpcId
+
+  PublicSubnetId:
+    Description: Created public subnet ID.
+    Value: !GetAtt VpcStack.Outputs.PublicSubnetId
+
+  PrivateSubnetId:
+    Description: Created private subnet ID.
+    Value: !GetAtt VpcStack.Outputs.PrivateSubnetId
+
+  PublicSecurityGroupId:
+    Description: Security group attached to the public EC2 instance.
+    Value: !GetAtt SecurityGroupsStack.Outputs.PublicSecurityGroupId
+
+  PrivateSecurityGroupId:
+    Description: Security group attached to the private EC2 instance.
+    Value: !GetAtt SecurityGroupsStack.Outputs.PrivateSecurityGroupId
+
+  PublicEc2InstanceId:
+    Description: Public EC2 instance ID.
+    Value: !GetAtt Ec2Stack.Outputs.PublicEc2InstanceId
+
+  PublicEc2PublicIp:
+    Description: Public IP of the public EC2 instance.
+    Value: !GetAtt Ec2Stack.Outputs.PublicEc2PublicIp
+
+  PrivateEc2InstanceId:
+    Description: Private EC2 instance ID.
+    Value: !GetAtt Ec2Stack.Outputs.PrivateEc2InstanceId
+
+  PrivateEc2PrivateIp:
+    Description: Private IP of the private EC2 instance.
+    Value: !GetAtt Ec2Stack.Outputs.PrivateEc2PrivateIp

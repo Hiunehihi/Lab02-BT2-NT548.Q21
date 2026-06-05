@@ -1,0 +1,17 @@
+project:
+  name: lab02-bt2
+  regions:
+    - ap-southeast-1
+
+tests:
+  infrastructure:
+    template: infrastructure.yaml
+    parameters:
+      ProjectName: lab02-bt2-taskcat
+      VpcCidr: 10.0.0.0/16
+      PublicSubnetCidr: 10.0.1.0/24
+      PrivateSubnetCidr: 10.0.2.0/24
+      AvailabilityZone: ap-southeast-1a
+      MyIp: 203.0.113.10/32
+      InstanceType: t3.micro
+      KeyName: ""

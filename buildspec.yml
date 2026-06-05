@@ -1,0 +1,47 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - python -m pip install --upgrade pip
+      - pip install "setuptools<81"
+      - pip install cfn-lint taskcat
+  build:
+    commands:
+      - cfn-lint --config-file .cfnlintrc *.yaml modules/*.yaml
+      - taskcat lint
+      - mkdir -p packaged
+      - aws cloudformation package --template-file infrastructure.yaml --s3-bucket "$ARTIFACT_BUCKET" --s3-prefix nested-templates --output-template-file packaged/infrastructure.yaml
+      - |
+        cat > .taskcat-packaged.yml <<'EOF'
+        project:
+          name: lab02-bt2-packaged
+          regions:
+            - ap-southeast-1
+        tests:
+          infrastructure:
+            template: packaged/infrastructure.yaml
+            parameters:
+              ProjectName: lab02-bt2-taskcat
+              VpcCidr: 10.0.0.0/16
+              PublicSubnetCidr: 10.0.1.0/24
+              PrivateSubnetCidr: 10.0.2.0/24
+              AvailabilityZone: ap-southeast-1a
+              MyIp: 203.0.113.10/32
+              InstanceType: t3.micro
+              KeyName: ""
+        EOF
+      - taskcat test run -i .taskcat-packaged.yml
+
+artifacts:
+  files:
+    - "*.yaml"
+    - modules/**/*
+    - packaged/**/*
+    - parameters/**/*
+    - buildspec.yml
+    - .taskcat.yml
+    - .cfnlintrc
+    - README.md
