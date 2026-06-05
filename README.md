@@ -141,7 +141,7 @@ curl https://checkip.amazonaws.com
 Khi truyền vào tham số `MyIp`, thêm `/32`, ví dụ:
 
 ```text
-14.169.22.156/32
+0.0.x.x/32
 ```
 
 Security Group của public EC2 sẽ chỉ cho phép SSH từ IP này.
